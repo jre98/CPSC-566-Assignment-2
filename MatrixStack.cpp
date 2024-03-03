@@ -25,12 +25,15 @@ void MatrixStack::push( const Matrix4f& m )
 	// Push m onto the stack.
 	// Your stack should have OpenGL semantics:
 	// the new top should be the old top multiplied by m
-	
+	Matrix4f newTop = m_matrices.front() * m;
+
+	m_matrices.push_back(newTop);
 }
 
 void MatrixStack::pop()
 {
 	// Remove the top element from the stack
-
+	if(!m_matrices.empty())
+		m_matrices.pop_back();
 }
 
