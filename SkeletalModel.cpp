@@ -45,7 +45,6 @@ void SkeletalModel::draw(Matrix4f cameraMatrix, bool skeletonVisible)
 
 void SkeletalModel::loadSkeleton( const char* filename )
 {
-	// Load the skeleton from file here.
 	ifstream in;
 
 	char buffer[MAX_BUFFER_SIZE];
@@ -54,6 +53,7 @@ void SkeletalModel::loadSkeleton( const char* filename )
 
 	int parentIndex;
 
+	// open .skel file
 	in.open(filename);
 
 	if(in.fail())
@@ -63,29 +63,33 @@ void SkeletalModel::loadSkeleton( const char* filename )
 		exit(1);
 	}
 
+	// load each line of file into buffer
 	while(in.getline(buffer, MAX_BUFFER_SIZE))
     {
         stringstream ss(buffer);
 
 		Joint *joint = new Joint;
 
+		// get x,y,z coordinates for the joints tranformation and parent index
 		ss >> x >> y >> z >> parentIndex;
 
+		// updated transformation matrix for joint
 		joint->transform.translation(x, y, z);
 
+		// if parent index is -1, then this is the root joint
 		if(parentIndex == -1)
 		{
 			m_rootJoint = joint;
 		}
 
+		// else, add joint to its parent's list of children
 		else
 		{
 			m_joints[parentIndex]->children.push_back(joint);
 		}
 
+		// add joint to list
 		m_joints.push_back(joint);
-
-		delete joint;
     }
 
 	in.close();
