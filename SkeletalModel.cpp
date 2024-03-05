@@ -4,6 +4,8 @@
 
 using namespace std;
 
+const int MAX_BUFFER_SIZE = 10000;
+
 void SkeletalModel::load(const char *skeletonFile, const char *meshFile, const char *attachmentsFile)
 {
 	loadSkeleton(skeletonFile);
@@ -39,10 +41,59 @@ void SkeletalModel::draw(Matrix4f cameraMatrix, bool skeletonVisible)
 	}
 }
 
+
+
 void SkeletalModel::loadSkeleton( const char* filename )
 {
 	// Load the skeleton from file here.
+	ifstream in;
+
+	char buffer[MAX_BUFFER_SIZE];
+
+	float x, y, z;
+
+	int parentIndex;
+
+	in.open(filename);
+
+	if(in.fail())
+	{
+		cerr << "file opening failed\n";
+
+		exit(1);
+	}
+
+	while(in.getline(buffer, MAX_BUFFER_SIZE))
+    {
+        stringstream ss(buffer);
+
+		Joint *joint = new Joint;
+
+		ss >> x >> y >> z >> parentIndex;
+
+		joint->transform.translation(x, y, z);
+
+		if(parentIndex == -1)
+		{
+			m_rootJoint = joint;
+		}
+
+		else
+		{
+			m_joints[parentIndex]->children.push_back(joint);
+		}
+
+		m_joints.push_back(joint);
+
+		delete joint;
+    }
+
+	in.close();
 }
+
+
+
+
 
 void SkeletalModel::drawJoints( )
 {
