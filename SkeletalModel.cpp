@@ -6,6 +6,8 @@ using namespace std;
 
 const int MAX_BUFFER_SIZE = 10000;
 
+int callStack = 0;
+
 void SkeletalModel::load(const char *skeletonFile, const char *meshFile, const char *attachmentsFile)
 {
 	loadSkeleton(skeletonFile);
@@ -27,6 +29,8 @@ void SkeletalModel::draw(Matrix4f cameraMatrix, bool skeletonVisible)
 
 	if( skeletonVisible )
 	{
+		glutSolidSphere( 0.025f, 12, 12 );
+
 		drawJoints();
 
 		drawSkeleton();
@@ -53,6 +57,8 @@ void SkeletalModel::loadSkeleton( const char* filename )
 
 	int parentIndex;
 
+	int i = 1;
+
 	// open .skel file
 	in.open(filename);
 
@@ -73,8 +79,18 @@ void SkeletalModel::loadSkeleton( const char* filename )
 		// get x,y,z coordinates for the joints tranformation and parent index
 		ss >> x >> y >> z >> parentIndex;
 
+		//cout << "line " << i << ": " << x << ", " << y << ", " << z << endl;
+
 		// updated transformation matrix for joint
-		joint->transform.translation(x, y, z);
+		joint->transform = joint->transform.translation(x,y,z);
+
+		//cout << "loaded transformation:\n";
+
+		//joint->transform.print();
+
+		//cout << endl;
+
+		//cout << "parent index: " << parentIndex << endl;
 
 		// if parent index is -1, then this is the root joint
 		if(parentIndex == -1)
@@ -110,7 +126,54 @@ void SkeletalModel::drawJoints( )
 	// (glPushMatrix, glPopMatrix, glMultMatrix).
 	// You should use your MatrixStack class
 	// and use glLoadMatrix() before your drawing call.
+
+	traverseHiearchy(m_rootJoint);
+
+	cout << "finished traversal\n";
+
 }
+
+
+
+void SkeletalModel::traverseHiearchy(Joint* joint)
+{
+	// visit node
+	// push joint's transform onto stack
+	m_matrixStack.push(joint->transform);
+
+	//cout << "pushed transformation: \n";
+
+	//joint->transform.print();
+
+	// pass stack top to glLoadMatrixf()
+	glLoadMatrixf(m_matrixStack.top());
+
+	// draw sphere
+	glutSolidSphere( 0.025f, 12, 12 );
+
+	// base case, no children
+	if(joint->children.empty())
+	{
+		//cout <<"returning\n";
+		return;
+	}
+
+	// traverse subtrees
+	for(int i = 0; i < joint->children.size() - 1; i++)
+	{
+		//cout << "child " << i+1 << endl;
+		
+		traverseHiearchy(joint->children[i]);
+	}
+
+	// visit last child
+	
+
+	// pop joint off stack
+	m_matrixStack.pop();
+}
+
+
 
 void SkeletalModel::drawSkeleton( )
 {

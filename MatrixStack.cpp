@@ -1,4 +1,5 @@
 #include "MatrixStack.h"
+#include <iostream>
 
 MatrixStack::MatrixStack()
 {
@@ -17,7 +18,16 @@ void MatrixStack::clear()
 Matrix4f MatrixStack::top()
 {
 	// Return the top of the stack
-	return m_matrices.front();
+	if(!m_matrices.empty())
+		return m_matrices.front();
+
+	else
+	{
+		std::cout << "stack empty\n";
+
+		exit(1);
+	}
+
 }
 
 void MatrixStack::push( const Matrix4f& m )
