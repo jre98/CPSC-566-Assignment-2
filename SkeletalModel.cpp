@@ -8,6 +8,8 @@ const int MAX_BUFFER_SIZE = 10000;
 
 int callStack = 0;
 
+Matrix4f   matrix = Matrix4f::identity();
+
 void SkeletalModel::load(const char *skeletonFile, const char *meshFile, const char *attachmentsFile)
 {
 	loadSkeleton(skeletonFile);
@@ -29,7 +31,7 @@ void SkeletalModel::draw(Matrix4f cameraMatrix, bool skeletonVisible)
 
 	if( skeletonVisible )
 	{
-		glutSolidSphere( 0.025f, 12, 12 );
+		//glutSolidSphere( 0.025f, 12, 12 );
 
 		drawJoints();
 
@@ -74,23 +76,13 @@ void SkeletalModel::loadSkeleton( const char* filename )
     {
         stringstream ss(buffer);
 
-		Joint *joint = new Joint;
-
 		// get x,y,z coordinates for the joints tranformation and parent index
 		ss >> x >> y >> z >> parentIndex;
 
-		//cout << "line " << i << ": " << x << ", " << y << ", " << z << endl;
+		Joint *joint = new Joint;
 
 		// updated transformation matrix for joint
 		joint->transform = joint->transform.translation(x,y,z);
-
-		//cout << "loaded transformation:\n";
-
-		//joint->transform.print();
-
-		//cout << endl;
-
-		//cout << "parent index: " << parentIndex << endl;
 
 		// if parent index is -1, then this is the root joint
 		if(parentIndex == -1)
@@ -101,6 +93,7 @@ void SkeletalModel::loadSkeleton( const char* filename )
 		// else, add joint to its parent's list of children
 		else
 		{
+
 			m_joints[parentIndex]->children.push_back(joint);
 		}
 
@@ -117,33 +110,36 @@ void SkeletalModel::loadSkeleton( const char* filename )
 
 void SkeletalModel::drawJoints( )
 {
-	// Draw a sphere at each joint. You will need to add a recursive helper function to traverse the joint hierarchy.
-	//
-	// We recommend using glutSolidSphere( 0.025f, 12, 12 )
-	// to draw a sphere of reasonable size.
-	//
-	// You are *not* permitted to use the OpenGL matrix stack commands
-	// (glPushMatrix, glPopMatrix, glMultMatrix).
-	// You should use your MatrixStack class
-	// and use glLoadMatrix() before your drawing call.
+	// process, but don't draw, the root joint
+	int numChildren = m_rootJoint->children.size();
 
-	traverseHiearchy(m_rootJoint);
+	// push transformation to stack
+	m_matrixStack.push(m_rootJoint->transform);
 
-	cout << "finished traversal\n";
+	// load matrix stack top
+	glLoadMatrixf(m_matrixStack.top());
 
+	// traverse subtrees
+	for(int i = 0; i < numChildren; i++)
+	{
+		traverseJoints(m_rootJoint->children[i]);
+	}
+
+	// pop the transformation matrix stack and then load the new top
+	m_matrixStack.pop();
+
+	glLoadMatrixf( m_matrixStack.top() );
 }
 
 
 
-void SkeletalModel::traverseHiearchy(Joint* joint)
+void SkeletalModel::traverseJoints(Joint* joint)
 {
+	int numChildren = joint->children.size();
+
 	// visit node
 	// push joint's transform onto stack
 	m_matrixStack.push(joint->transform);
-
-	//cout << "pushed transformation: \n";
-
-	//joint->transform.print();
 
 	// pass stack top to glLoadMatrixf()
 	glLoadMatrixf(m_matrixStack.top());
@@ -151,38 +147,117 @@ void SkeletalModel::traverseHiearchy(Joint* joint)
 	// draw sphere
 	glutSolidSphere( 0.025f, 12, 12 );
 
-	// base case, no children
-	if(joint->children.empty())
-	{
-		//cout <<"returning\n";
-		return;
-	}
-
 	// traverse subtrees
-	for(int i = 0; i < joint->children.size() - 1; i++)
+	for(int i = 0; i < numChildren; i++)
 	{
-		//cout << "child " << i+1 << endl;
-		
-		traverseHiearchy(joint->children[i]);
+		traverseJoints(joint->children[i]);
 	}
 
-	// visit last child
-	
-
-	// pop joint off stack
+	// pop joint off stack and apply new top
 	m_matrixStack.pop();
+
+	glLoadMatrixf( m_matrixStack.top() );
 }
 
 
-
+// Draw boxes between the joints. You will need to add a recursive 
+// helper function to traverse the joint hierarchy.
 void SkeletalModel::drawSkeleton( )
 {
-	// Draw boxes between the joints. You will need to add a recursive helper function to traverse the joint hierarchy.
+	// process the root joint
+	Matrix4f transform = m_rootJoint->transform;
+	
+	m_matrixStack.push(transform);
+	
+	// traverse the child subtrees
+	for (int i = 0; i < m_rootJoint->children.size(); i++)
+	{
+		traverseSkeleton(m_rootJoint->children[i]);
+	}
 }
+
+
+// draw a box between each joint node and each of its children
+void SkeletalModel::traverseSkeleton(Joint* joint)
+{
+	int numChildren = joint->children.size();
+
+	// only draw starting from joints with children
+	if(!joint->children.empty())
+	{
+		// push current transformation
+		m_matrixStack.push(joint->transform);	
+		
+		// draw bone between each of the child joints
+		for(int i = 0; i < numChildren; i++)
+		{
+			// rotate matrix
+			// z vector to rotate around
+			Vector3f rotation = Vector3f(0,0,1);
+			
+			// get the z normalized coordinates from the transformation matrix
+			Vector3f zNormalized = joint->children[i]->transform.getCol(3).xyz().normalized();
+			
+			// get the x and y coordinates for the basis with cross products
+			Vector3f y = Vector3f::cross(zNormalized, rotation).normalized();
+
+			Vector3f x = Vector3f::cross(y, zNormalized).normalized();
+			
+			Matrix3f  basis = Matrix3f(x,y,zNormalized);
+			
+			Matrix4f basisCoords = Matrix4f::identity();
+			
+			basisCoords.setSubmatrix3x3(0,0,basis);
+			
+			// combine the basis with the identity matrix and push it to the stack
+			m_matrixStack.push(basisCoords);
+			
+			// scale matrix
+			// scale the matrix by .025, .025 and the z coordinates of the transform
+			Matrix4f scaleCoords = Matrix4f::scaling(0.025, 0.025, joint->children[i]->transform.getCol(3).xyz().abs());
+			
+			m_matrixStack.push(scaleCoords);
+			
+			// translate matrix
+			Matrix4f transCoords = Matrix4f::translation(0.0, 0.0, 0.5);
+			
+			m_matrixStack.push(transCoords);
+			
+			// finally load the matrix and draw the cube
+			glLoadMatrixf(m_matrixStack.top());
+			
+			glutSolidCube(1.0f);
+			
+			// pop the 3 transformations
+			m_matrixStack.pop();
+		
+			m_matrixStack.pop();
+			
+			m_matrixStack.pop();
+			
+			glLoadMatrixf(m_matrixStack.top());
+			
+			// traverse child subtrees
+			traverseSkeleton(joint->children[i]);
+		}
+		
+		m_matrixStack.pop();
+	}
+}
+
+
 
 void SkeletalModel::setJointTransform(int jointIndex, float rX, float rY, float rZ)
 {
-	// Set the rotation part of the joint's transformation matrix based on the passed in Euler angles.
+	// Set the rotation part of the joint's 
+	// transformation matrix based on the passed in Euler angles.
+	Matrix4f rotateTransform = m_joints[jointIndex]->transform;
+
+	rotateTransform.setSubmatrix3x3(0, 0, (Matrix4f::rotateZ(rZ) * Matrix4f::rotateY(rY) * 
+	Matrix4f::rotateX(rX)).getSubmatrix3x3(0,0));
+
+	m_joints[jointIndex]->transform = rotateTransform;
+
 }
 
 

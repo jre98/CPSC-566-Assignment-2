@@ -71,7 +71,9 @@ public:
 	// and the current joint --> world transforms.
 	void updateMesh();
 
-	void traverseHiearchy(Joint *joint);
+	void traverseJoints(Joint *joint);
+
+	void traverseSkeleton(Joint *joint);
 
 private:
 

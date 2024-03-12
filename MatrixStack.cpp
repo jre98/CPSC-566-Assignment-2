@@ -19,7 +19,7 @@ Matrix4f MatrixStack::top()
 {
 	// Return the top of the stack
 	if(!m_matrices.empty())
-		return m_matrices.front();
+		return m_matrices.back();
 
 	else
 	{
@@ -35,7 +35,11 @@ void MatrixStack::push( const Matrix4f& m )
 	// Push m onto the stack.
 	// Your stack should have OpenGL semantics:
 	// the new top should be the old top multiplied by m
-	Matrix4f newTop = m_matrices.front() * m;
+	Matrix4f newTop = m_matrices.back() * m;
+
+	//std::cout << "new top = \n";
+
+	//newTop.print();
 
 	m_matrices.push_back(newTop);
 }
