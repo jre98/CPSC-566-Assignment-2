@@ -155,7 +155,7 @@ void ModelerUserInterface::cb_m_modelerWindow(Fl_Double_Window* o, void* v) {
 
 ModelerUserInterface::ModelerUserInterface() {
   Fl_Double_Window* w;
-  { Fl_Double_Window* o = m_controlsWindow = new Fl_Double_Window(395, 325, "Assignment 2 Controls");
+  { Fl_Double_Window* o = m_controlsWindow = new Fl_Double_Window(395, 325, "Michael Clausen: Assignment 2 Controls");
     w = o;
     o->callback((Fl_Callback*)cb_m_controlsWindow, (void*)(this));
     o->when(FL_WHEN_NEVER);
@@ -178,7 +178,7 @@ ModelerUserInterface::ModelerUserInterface() {
     }
     o->end();
   }
-  { Fl_Double_Window* o = m_modelerWindow = new Fl_Double_Window( 800, 800, "Assignment 2 Model");
+  { Fl_Double_Window* o = m_modelerWindow = new Fl_Double_Window( 800, 800, "Michael Clausen: Assignment 2 Model");
     w = o;
     o->callback((Fl_Callback*)cb_m_modelerWindow, (void*)(this));
     o->when(FL_WHEN_NEVER);

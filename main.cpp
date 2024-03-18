@@ -62,6 +62,7 @@ int main( int argc, char* argv[] )
 	);
 
     // Run the modeler application.
+
     int ret = ModelerApplication::Instance()->Run();
 
     // This line is reached when you close the program.
