@@ -261,6 +261,21 @@ void SkeletalModel::setJointTransform(int jointIndex, float rX, float rY, float 
 }
 
 
+// Recursive helper function to compute bind pose transformations
+void computeBindTransformRecursive(Joint* joint, const Matrix4f& parentTransform) {
+
+    // Compute joint's transformation relative to its parent
+    Matrix4f jointTransform = parentTransform * joint->transform;
+
+    // Set the joint's bindWorldToJointTransform
+    joint->bindWorldToJointTransform = jointTransform.inverse();
+	
+    // Recursively compute bind pose transformations for children
+    for (Joint* child : joint->children) {
+        computeBindTransformRecursive(child, jointTransform);
+    }
+}
+
 void SkeletalModel::computeBindWorldToJointTransforms()
 {
 	// 2.3.1. Implement this method to compute a per-joint transform from
@@ -271,6 +286,27 @@ void SkeletalModel::computeBindWorldToJointTransforms()
 	//
 	// This method should update each joint's bindWorldToJointTransform.
 	// You will need to add a recursive helper function to traverse the joint hierarchy.
+
+	 // Start recursive computation from the root joint
+    computeBindTransformRecursive(m_rootJoint, Matrix4f::identity());
+
+	
+}
+
+// Recursive helper function to update current pose transformations
+void updateCurrentTransformRecursive(Joint* joint, const Matrix4f& parentTransform) 
+{
+    // Compute joint's transformation relative to its parent
+    Matrix4f jointTransform = parentTransform * joint->transform;
+
+    // Set the joint's currentJointToWorldTransform
+    joint->currentJointToWorldTransform = jointTransform;
+
+    // Recursively update current pose transformations for children
+    for (Joint* child : joint->children) 
+    {
+        updateCurrentTransformRecursive(child, jointTransform);
+    }
 }
 
 void SkeletalModel::updateCurrentJointToWorldTransforms()
@@ -283,6 +319,10 @@ void SkeletalModel::updateCurrentJointToWorldTransforms()
 	//
 	// This method should update each joint's bindWorldToJointTransform.
 	// You will need to add a recursive helper function to traverse the joint hierarchy.
+
+	  // Start recursive update from the root joint
+    updateCurrentTransformRecursive(m_rootJoint, Matrix4f::identity());
+
 }
 
 void SkeletalModel::updateMesh()
@@ -292,5 +332,37 @@ void SkeletalModel::updateMesh()
 	// given the current state of the skeleton.
 	// You will need both the bind pose world --> joint transforms.
 	// and the current joint --> world transforms.
-}
+
+	// Iterate through each vertex in the mesh
+    for (size_t i = 0; i < m_mesh.currentVertices.size(); ++i)
+    {
+        // Get the bind pose vertex position
+        Vector3f bindPoseVertex = m_mesh.bindVertices[i];
+
+        // Initialize the transformed vertex to the bind pose vertex
+        Vector3f transformedVertex = bindPoseVertex;
+
+        // Apply bind pose world to joint transform
+        for (size_t j = 0; j < m_mesh.attachments[i].size(); ++j)
+        {
+            int jointIndex = j;
+            float weight = m_mesh.attachments[i][j];
+
+            // Compute vertex position in joint space
+            Vector4f vertexInJointSpace = m_joints[jointIndex]->bindWorldToJointTransform * Vector4f(bindPoseVertex, 1.0f);
+
+            // Blend with attachment weight
+            transformedVertex += weight * Vector3f(vertexInJointSpace.x(), vertexInJointSpace.y(), vertexInJointSpace.z());
+        }
+
+		// Access the joint index for this vertex from the faces member
+		// Assuming the first index in faces corresponds to the joint affecting this vertex
+        int jointIndex = m_mesh.faces[i][0]; 
+        // Apply current joint to world transform
+        transformedVertex = (m_joints[jointIndex]->currentJointToWorldTransform * Vector4f(transformedVertex, 1.0f)).xyz();
+
+        // Update the transformed vertex in currentVertices
+        m_mesh.currentVertices[i] = transformedVertex;
+    }
+ }
 
